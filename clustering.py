@@ -16,11 +16,13 @@ from sklearn.cluster import DBSCAN
 from typing import Callable, Optional, TypedDict
 
 # Global variables
+GRID_SHAPE = (8, 8)
 
 # Path to directories
 IMGS_DIR = Path(".", "images")
 OUTPUT_DIR = Path(".", "output")
 LINE_WIDTH = 8
+
 
 
 def get_distinct_colors(amount: int) -> list[tuple[int, int, int]]:
@@ -93,6 +95,7 @@ def dbscan_clustering_custom(
     quantization: Optional[int] = None,
 ) -> tuple[np.ndarray, np.ndarray]:
     """DBSCAN clustering with custom distance metric"""
+    print(f"Running DBSCAN clustering with parameters eps={eps}, min_samples={min_samples}, quantization={quantization}")
     shape = image.shape
     pixels = image.reshape(-1, 3)
 
@@ -329,20 +332,25 @@ def main():
         min_samples=min_samples_var.get(),
         quantization=quantization_var.get(),
     )
-    grid_shape = (5, 5)
 
-    # Open a file dialog to select an image file
-    in_path = tk.filedialog.askopenfilename(
-        title="Select an image file",
-        filetypes=[("Image files", "*.jpg;*.jpeg;*.png")],
-    )
-    if not in_path:
-        print("No file selected.")
-        window.quit()
-        return
+    in_path = None
+    def select_image():
+        # Open a file dialog to select an image file
+        nonlocal in_path
+        in_path = tk.filedialog.askopenfilename(
+            title="Select an image file",
+            filetypes=[("Image files", "*.jpg;*.jpeg;*.png")],
+        )
+        if not in_path:
+            print("No file selected.")
+            window.quit()
+            return
+        # Convert the selected path to a Path object
+        in_path = Path(in_path)
 
-    # Convert the selected path to a Path object
-    in_path = Path(in_path)
+        # Restart the process
+        process_image()
+
 
     # Create the output directory if it doesn't exist
     os.makedirs(OUTPUT_DIR, exist_ok=True)
@@ -355,8 +363,6 @@ def main():
             scale_factor=1.0,
             clusterer=prepared_clusterer,
         )
-
-        print("Example data:", result.labels[0, 0])
 
         processed_image, label_to_color = get_label_visualization(
             result.scaled_image, result.labels, result.label_ids
@@ -471,6 +477,18 @@ def main():
         )
         ok_button.pack(pady=10)
 
+    select_image_button = tk.Button(
+        button_frame,
+        text="Select Image",
+        command=select_image,
+        font=("Arial", 12),
+        bg="#2196F3",
+        fg="white",
+        padx=20,
+        pady=10,
+    )
+    select_image_button.pack(side=tk.LEFT, padx=20)
+
     retry_button = tk.Button(
         button_frame,
         text="Retry",
@@ -511,12 +529,12 @@ def main():
             shape=(labels.shape[0], labels.shape[1], 3), dtype=np.uint8
         )
         final_image[binary_mask == 1] = [0, 0, 255]  # Red
-        draw_grid_lines(final_image, grid_shape)
+        draw_grid_lines(final_image, GRID_SHAPE)
         cv2.imwrite(out_path, final_image)
         print("Final image saved to:", out_path)
 
         print("Computing coverage...")
-        coverage_data = calculate_coverage(binary_mask, grid_shape)
+        coverage_data = calculate_coverage(binary_mask, GRID_SHAPE)
         json_path = out_path.with_suffix(".json")
         with open(json_path, "w") as f:
             json.dump(coverage_data, f, indent=4)
@@ -540,7 +558,7 @@ def main():
     save_button.pack(side=tk.RIGHT, padx=20)
 
     # Start with processing the first image
-    process_image()
+    select_image()
 
     window.mainloop()
 
