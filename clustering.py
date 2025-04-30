@@ -24,7 +24,6 @@ OUTPUT_DIR = Path(".", "output")
 LINE_WIDTH = 8
 
 
-
 def get_distinct_colors(amount: int) -> list[tuple[int, int, int]]:
     """
     Generates a list of unique and distinct colors.
@@ -95,7 +94,9 @@ def dbscan_clustering_custom(
     quantization: Optional[int] = None,
 ) -> tuple[np.ndarray, np.ndarray]:
     """DBSCAN clustering with custom distance metric"""
-    print(f"Running DBSCAN clustering with parameters eps={eps}, min_samples={min_samples}, quantization={quantization}")
+    print(
+        f"Running DBSCAN clustering with parameters eps={eps}, min_samples={min_samples}, quantization={quantization}"
+    )
     shape = image.shape
     pixels = image.reshape(-1, 3)
 
@@ -334,6 +335,7 @@ def main():
     )
 
     in_path = None
+
     def select_image():
         # Open a file dialog to select an image file
         nonlocal in_path
@@ -350,7 +352,6 @@ def main():
 
         # Restart the process
         process_image()
-
 
     # Create the output directory if it doesn't exist
     os.makedirs(OUTPUT_DIR, exist_ok=True)
