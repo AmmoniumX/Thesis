@@ -85,6 +85,39 @@ def color_distance(color1, color2):
     diff = np.abs(c1 - c2)
     return np.sum(diff) * 255  # Scale back to 0-255 range
 
+def color_distance_hsv_weighted(color1, color2):
+    """Custom distance metric for colors that puts more emphasis on hue differences"""
+    # Convert RGB to HSV
+    c1_rgb = np.array(color1, dtype=np.float32) / 255.0
+    c2_rgb = np.array(color2, dtype=np.float32) / 255.0
+    
+    # OpenCV expects RGB in 0-1 range for conversion to HSV
+    c1_hsv = cv2.cvtColor(np.array([[c1_rgb]]), cv2.COLOR_RGB2HSV)[0][0]
+    c2_hsv = cv2.cvtColor(np.array([[c2_rgb]]), cv2.COLOR_RGB2HSV)[0][0]
+    
+    # Handle the circular nature of hue (0-180 in OpenCV's HSV)
+    h1, s1, v1 = c1_hsv
+    h2, s2, v2 = c2_hsv
+    
+    # Calculate hue difference accounting for circularity
+    h_diff = min(abs(h1 - h2), 180 - abs(h1 - h2)) / 180.0
+    
+    # Calculate differences for saturation and value
+    s_diff = abs(s1 - s2) / 255.0
+    v_diff = abs(v1 - v2) / 255.0
+    
+    # Apply weights to emphasize hue differences
+    # These weights can be adjusted based on your specific needs
+    h_weight = 1.0
+    s_weight = 1.0
+    v_weight = 1.0
+    
+    # Compute weighted distance
+    distance = abs(h_weight * h_diff + s_weight * s_diff + v_weight * v_diff)
+    
+    # Scale to 0-255 range for consistency with the rest of the code
+    return distance * 255
+
 
 def dbscan_clustering_custom(
     image: np.ndarray,
@@ -358,6 +391,7 @@ def main():
 
     def process_image():
         # Analyze the selected image
+        nonlocal prepared_clusterer
         result = analyze_image(
             in_path,
             OUTPUT_DIR,
@@ -459,9 +493,13 @@ def main():
 
         def on_ok():
             # Update the clusterer with new parameters
-            prepared_clusterer.eps = eps_var.get()
-            prepared_clusterer.min_samples = min_samples_var.get()
-            prepared_clusterer.quantization = quantization_var.get()
+            nonlocal prepared_clusterer
+            prepared_clusterer = partial(
+                dbscan_clustering_custom,
+                eps=eps_var.get(),
+                min_samples=min_samples_var.get(),
+                quantization=quantization_var.get(),
+            )
             param_window.destroy()
             # Go back to process_image
             process_image()
