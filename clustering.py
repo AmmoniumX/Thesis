@@ -6,13 +6,14 @@ import time
 import json
 import colorsys
 import numpy as np
+import matplotlib.pyplot as plt
 from matplotlib.figure import Figure
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, NavigationToolbar2Tk
 
 from pathlib import Path
 from functools import partial
 from dataclasses import dataclass
-from sklearn.cluster import DBSCAN
+from sklearn.cluster import DBSCAN, KMeans
 from typing import Callable, Optional, TypedDict
 
 # Global variables
@@ -118,6 +119,30 @@ def color_distance_hsv_weighted(color1, color2):
     # Scale to 0-255 range for consistency with the rest of the code
     return distance * 255
 
+def kmeans_clustering(
+    image: np.ndarray, n_clusters: int
+) -> tuple[np.ndarray, np.ndarray]:
+    """
+    Applies KMeans clustering to the image and returns the labels and cluster centers.
+
+    Args:
+        image (np.ndarray): The input image as a NumPy array.
+        n_clusters (int): The number of clusters to form.
+
+    Returns:
+        tuple[np.ndarray, np.ndarray]: A tuple containing the labels for each pixel and number of clusters.
+    """
+    pixels = image.reshape(-1, 3)  # Reshape to a 2D array of pixels
+
+    kmeans = KMeans(
+        n_clusters=n_clusters, random_state=42
+    )  # Adjust n_clusters as needed
+    kmeans.fit(pixels)
+    labels = kmeans.labels_  # Get the cluster labels for each pixel
+    # Map the labels back to the original pixel values
+    labels = labels.reshape(image.shape[:2])
+    # centers = kmeans.cluster_centers_  # Get the cluster centers (colors)
+    return labels, np.unique(labels)
 
 def dbscan_clustering_custom(
     image: np.ndarray,
@@ -183,6 +208,7 @@ def dbscan_clustering_custom(
 
 class CoverageData(TypedDict):
     global_coverage: float
+    size_distribution: dict[str, int]
     cell_coverage: dict[str, float]
 
 
@@ -219,7 +245,38 @@ def calculate_coverage(mask: np.ndarray, grid_shape: tuple[int, int]):
                 * 100
             )
 
+    # Calculate the size distribution of clusters
+    # Find contours in the mask
+    # contours, _ = cv2.findContours(mask.astype(np.uint8), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
+    # Calculate the size of each cluster
+    # areas = [cv2.contourArea(cnt) for cnt in contours]
+    # Remove large contours
+    # areas = [area for area in areas if area < 1000]
+    
+    # # Get bins
+    # bin_counts, bin_edges = np.histogram(areas, bins=20)
+    # Create a histogram of cluster sizes
+    # Create bins splitting logarithmically
+    # bin_counts, bin_edges = np.histogram(areas, bins=np.logspace(np.log10(1), np.log10(max(areas)), 20))
+
+    # fig, ax = plt.subplots()
+    # ax.hist(areas, bins=bin_edges, alpha=0.7, color="blue", edgecolor="black")
+    # ax.set_title("Cluster Size Distribution")
+    # ax.set_xlabel("Area (pixels)")
+    # ax.set_ylabel("Frequency")
+    # plt.tight_layout()
+    # plt.savefig("cluster_size_distribution.png")
+    # plt.close(fig)
+
+    # # Convert the histogram to a dictionary
+    # size_distribution = {
+    #     f"{int(bin_edges[i])}-{int(bin_edges[i + 1])}": int(bin_counts[i])
+    #     for i in range(len(bin_counts))
+    # }
+
     return {"global_coverage": global_coverage, "cell_coverage": cell_coverage}
+    # return {"global_coverage": global_coverage, "cell_coverage": cell_coverage, "size_distribution": size_distribution}
 
 
 def analyze_image(
@@ -360,11 +417,15 @@ def main():
     eps_var = tk.DoubleVar(value=8.0)
     min_samples_var = tk.IntVar(value=5)
     quantization_var = tk.IntVar(value=8)
+    # prepared_clusterer = partial(
+    #     dbscan_clustering_custom,
+    #     eps=eps_var.get(),
+    #     min_samples=min_samples_var.get(),
+    #     quantization=quantization_var.get(),
+    # )
     prepared_clusterer = partial(
-        dbscan_clustering_custom,
-        eps=eps_var.get(),
-        min_samples=min_samples_var.get(),
-        quantization=quantization_var.get(),
+        kmeans_clustering,
+        n_clusters=3
     )
 
     in_path = None
@@ -449,7 +510,7 @@ def main():
             listbox.insert(tk.END, f"Layer {label}")
             listbox.select_set(tk.END)  # Select all layers by default
 
-        def on_select_changed(_event):
+        def on_select_changed(event):
             selected_indices = listbox.curselection()
 
             # Update the processed image with the selected layers
@@ -568,7 +629,7 @@ def main():
             shape=(labels.shape[0], labels.shape[1], 3), dtype=np.uint8
         )
         final_image[binary_mask == 1] = [0, 0, 255]  # Red
-        draw_grid_lines(final_image, GRID_SHAPE)
+        # draw_grid_lines(final_image, GRID_SHAPE)
         cv2.imwrite(out_path, final_image)
         print("Final image saved to:", out_path)
 
