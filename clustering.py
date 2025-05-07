@@ -417,16 +417,16 @@ def main():
     eps_var = tk.DoubleVar(value=8.0)
     min_samples_var = tk.IntVar(value=5)
     quantization_var = tk.IntVar(value=8)
-    # prepared_clusterer = partial(
-    #     dbscan_clustering_custom,
-    #     eps=eps_var.get(),
-    #     min_samples=min_samples_var.get(),
-    #     quantization=quantization_var.get(),
-    # )
     prepared_clusterer = partial(
-        kmeans_clustering,
-        n_clusters=3
+        dbscan_clustering_custom,
+        eps=eps_var.get(),
+        min_samples=min_samples_var.get(),
+        quantization=quantization_var.get(),
     )
+    # prepared_clusterer = partial(
+    #     kmeans_clustering,
+    #     n_clusters=3
+    # )
 
     in_path = None
 
